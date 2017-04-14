@@ -1,0 +1,220 @@
+---
+title: "CodeBook"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Codebook for Tidy Datasets derived from UCI HAR Data
+
+The purpose of this project is to demonstrate an ability to collect, work with, and clean a data set. The goal is to prepare tidy data that can be used for later analysis. Submissions will be graded by your peers on a series of yes/no questions related to the project. A submission comprises: 
+  1) a tidy data set as described below, 
+  2) a link to a Github repository with a script for performing the analysis,
+  3) a code book that describes the variables, the data, and any transformations or work that you performed to clean up the data called CodeBook.md. 
+  
+A README.md should also be included in the repo with the scripts. This repo explains how all of the scripts work and how they are connected.
+
+## The Task
+
+One R script called run_analysis.R is included that does the following:
+
+  1) Merges the training and the test sets to create one data set.
+  2) Extracts only the measurements on the mean and standard deviation for each measurement.
+  3) Uses descriptive activity names to name the activities in the data set
+  4) Appropriately labels the data set with descriptive variable names.
+  5) From the data set in step 4, creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+
+## The Data
+
+One of the most exciting areas in all of data science right now is wearable computing - see for example this article . Companies like Fitbit, Nike, and Jawbone Up are racing to develop the most advanced algorithms to attract new users. The data linked to from the course website represent data collected from the accelerometers from the Samsung Galaxy S smartphone. A full description is available at the site where the data was obtained:
+
+http://archive.ics.uci.edu/ml/datasets/Human+Activity+Recognition+Using+Smartphones
+
+Here are the data for the project:
+
+https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip
+
+When the data is downloaded and unpacked you find that it is in flat files that correspond to the data collection:
+
+- 'features_info.txt': Shows information about the variables used on the feature vector.
+
+- 'features.txt': List of all features.
+
+- 'activity_labels.txt': Links the class labels with their activity name.
+
+- 'train/X_train.txt': Training set.
+
+- 'train/y_train.txt': Training labels.
+
+- 'test/X_test.txt': Test set.
+
+- 'test/y_test.txt': Test labels.
+
+The following files are available for the train and test data. Their descriptions are equivalent. 
+
+- 'train/subject_train.txt': Each row identifies the subject who performed the activity for each window sample. Its range is from 1 to 30. 
+
+- 'train/Inertial Signals/total_acc_x_train.txt': The acceleration signal from the smartphone accelerometer X axis in standard gravity units 'g'. Every row shows a 128 element vector. The same description applies for the 'total_acc_x_train.txt' and 'total_acc_z_train.txt' files for the Y and Z axis. 
+
+- 'train/Inertial Signals/body_acc_x_train.txt': The body acceleration signal obtained by subtracting the gravity from the total acceleration. 
+
+- 'train/Inertial Signals/body_gyro_x_train.txt': The angular velocity vector measured by the gyroscope for each window sample. The units are radians/second. 
+
+```{r include=FALSE}
+# INCLUDE
+library(dplyr)
+library(plyr)
+# DEFINITIONS
+#
+# Where are the files located in my directory structure?
+#
+FILE_LOC <- "~/Developer/Learning_R/Coursera Class in Getting and Cleaning Data/UCI HAR Dataset/"
+TRAINING_LOC <- "train/"
+TEST_LOC <- "test/"
+TRAINING_FILE <- "X_train.txt"
+TEST_FILE <- "X_test.txt"
+TEST_PREDICTOR <- "y_test.txt"
+TRAINING_PREDICTOR <- "y_train.txt"
+SUBJECT_TRAIN <- "subject_train.txt"
+SUBJECT_TEST <- "subject_test.txt"
+#
+# DATA LABELS
+#
+# pull the data labels from the text files
+#
+feature_names <- read.table(paste(FILE_LOC, "features.txt", sep = ""), header = FALSE, col.names = c("index", "Measurement"), stringsAsFactors = FALSE)
+activity_labels <- read.table(paste(FILE_LOC, "activity_labels.txt", sep=""), header=FALSE, col.names = c("level", "Activity"))
+
+```
+## Cleaning the Data
+
+Here is a view of the activities each subject undertook:
+
+```{r}
+activity_labels
+```
+
+and here is a short sample (a total of 561 measurements exist in this file) of the measurements that were collected during each activity.  This data is in the file features.txt (see above).
+
+```{r}
+summary(feature_names)
+feature_names[1:20,]
+```
+
+### TRAINING DATA
+
+Because we have two different datasets, and because we are required to combine them, we will import one at time and combine each dataset using the same methods (import, combine with subject, and combine with activity_label ).
+```{r include = FALSE}
+#
+# get the training data and use the feature names as column labels from above
+#
+training_data <- read.table(paste(FILE_LOC, TRAINING_LOC, TRAINING_FILE, sep=""), header=FALSE, col.names=feature_names$Measurement)
+#
+# the predictors (the activity each subject was performing when the data was captured)
+#
+training_prediction <- read.table(paste(FILE_LOC, TRAINING_LOC, TRAINING_PREDICTOR, sep = ""), header = FALSE, col.names = "Activity")
+#
+# make this prediction data into a factor column
+#
+training_prediction$Activity <- as.factor(training_prediction$Activity)
+levels(training_prediction$Activity) <- activity_labels$Activity
+#
+#combine the training data with activity data
+#
+training_data <- mutate(training_data,Activity = training_prediction$Activity)
+#
+# add in the subject identifier
+#
+training_subjects <- read.table(paste(FILE_LOC, TRAINING_LOC, SUBJECT_TRAIN, sep=""), header = FALSE, col.names = "Subject")
+training_data <- cbind(training_data, training_subjects)
+```
+In the end we have a preliminary dataset that contains columns for each of the 561 observations, for each subject (person) who performed a task, and each task (outcome) that was performed.  
+
+```{r }
+(training_data[1:10,1:5])
+
+```
+We do the same for the test data
+
+```{r include=FALSE}
+#
+# TEST DATA
+#
+# get the test data and use the feature names as column labels from above
+#
+test_data <- read.table(paste(FILE_LOC, TEST_LOC, TEST_FILE, sep=""), header=FALSE, col.names=feature_names$Measurement)
+#
+# the predictors (the activity each subject was performing when the data was captured)
+#
+test_prediction <- read.table(paste(FILE_LOC, TEST_LOC, TEST_PREDICTOR, sep = ""), header = FALSE, col.names = "Activity")
+#
+# make this prediction data into a factor column
+#
+test_prediction$Activity <- as.factor(test_prediction$Activity)
+levels(test_prediction$Activity) <- activity_labels$Activity
+#
+#combine the training data with activity data
+#
+test_data <- mutate(test_data,Activity = test_prediction$Activity)
+#
+#
+# add in the subject identifier
+#
+test_subjects <- read.table(paste(FILE_LOC, TEST_LOC, SUBJECT_TEST, sep=""), header = FALSE, col.names = "Subject")
+test_data <- cbind(test_data, test_subjects)
+```
+
+## Combine the Test and Training Data
+```{r}
+total_data <- rbind(test_data, training_data)
+
+```
+## Select the Mean and Std Dev columns
+
+```{r}
+#
+#total_mean_data <- as.data.frame(t(sapply(total_data[,1:ncol(total_data)-1], 
+#                                                       function(the_func) list(mean=mean(the_func, na.rm=TRUE), 
+#                                                                               s_dev=sd(the_func,na.rm=TRUE) ))))
+
+mean_data <- select(total_data, contains("mean"))
+sdev_data <- select(total_data, contains("std")) 
+#
+# put the Activities and the Sujects back into the data
+#
+activity_subject <- c("Activity", "Subject")
+activity_subject_data <- select(total_data, one_of(activity_subject))
+#
+# combine all three
+#
+mean_sdev_dataset <- cbind(mean_data, sdev_data, activity_subject_data)
+
+```
+## First Tidy Dataset
+
+Now we have a dataset consisting of only the Mean and Std. Dev activites from the original data. Each row consists of a single observation (to include 80+ data points per observation) and each column is a single data point.  This data is submitted as:
+
+#mean_plus_sdev.csv
+
+
+#
+# Summarise the table grouped by Activity and then by Subject
+#
+```{r}
+
+summary_dataset <- as.data.frame(mean_sdev_dataset %>% 
+                                   group_by(Activity, Subject) %>% 
+                                   summarise_each(funs(mean)))
+
+```
+
+This data contains only the mean and standard deviation from the original data but this time the data is grouped by activity and then by subject
+
+```{r}
+str(summary_dataset)
+```
+
+This summary dataset is submitted as summary_data.csv
+
